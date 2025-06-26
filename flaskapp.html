@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Ranker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .resume-card {
+            transition: all 0.3s ease;
+        }
+        .resume-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 6px;
+            background-color: #e0e0e0;
+            border-radius: 3px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="gradient-bg text-white py-12 md:py-20 px-4">
+        <div class="max-w-5xl mx-auto text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">AI Resume Ranker</h1>
+            <p class="text-xl md:text-2xl mb-8">Automatically rank and analyze resumes based on job requirements</p>
+            <div class="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur-sm">
+                <p class="text-lg mb-4">This system uses advanced NLP and machine learning to:</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <i class="fas fa-search text-2xl mb-2"></i>
+                        <p>Extract key skills and experiences</p>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <i class="fas fa-brain text-2xl mb-2"></i>
+                        <p>Analyze semantic similarity</p>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <i class="fas fa-sort-amount-down text-2xl mb-2"></i>
+                        <p>Rank candidates objectively</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Job Description</h2>
+                <form id="rankingForm">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2" for="job_desc">Enter Job Description:</label>
+                        <textarea id="job_desc" name="job_desc" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Paste the job description here...">{{ job_description }}</textarea>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 mb-2">Upload Resumes:</label>
+                        <div id="resumeInputs">
+                            <div class="mb-2 relative">
+                                <textarea name="resumes" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Paste resume text here..."></textarea>
+                                <button type="button" onclick="removeResumeField(this)" class="absolute top-1 right-1 text-red-500 hover:text-red-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addResumeField()" class="mt-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                            <i class="fas fa-plus mr-2"></i>Add Another Resume
+                        </button>
+                    </div>
+                    
+                    <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-md font-medium hover:opacity-90 transition flex items-center justify-center">
+                        <span id="submitText">Rank Resumes</span>
+                        <span id="loadingSpinner" class="hidden ml-2">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="lg:col-span-2">
+                <div id="resultsContainer">
+                    <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                        <div class="text-gray-400 mb-4">
+                            <i class="fas fa-list-ol text-5xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Results Yet</h3>
+                        <p class="text-gray-500">Enter job description and resumes above, then click "Rank Resumes" to see ranked results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add and remove resume fields dynamically
+        function addResumeField() {
+            const container = document.getElementById('resumeInputs');
+            const div = document.createElement('div');
+            div.className = 'mb-2 relative';
+            div.innerHTML = `
+                <textarea name="resumes" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Paste resume text here..."></textarea>
+                <button type="button" onclick="removeResumeField(this)" class="absolute top-1 right-1 text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(div);
+            
+            // Scroll to the new field if it's not visible
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function removeResumeField(button) {
+            const fieldContainer = button.parentNode;
+            if (document.querySelectorAll('#resumeInputs > div').length > 1) {
+                fieldContainer.remove();
+            } else {
+                // If last field, just clear it
+                fieldContainer.querySelector('textarea').value = '';
+            }
+        }
+        
+        // Form submission
+        document.getElementById('rankingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.querySelector('#rankingForm button[type="submit"]');
+            const submitText = document.getElementById('submitText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            submitBtn.disabled = true;
+            submitText.textContent = 'Processing...';
+            loadingSpinner.classList.remove('hidden');
+            
+            // Get all resumes
+            const formData = new FormData(this);
+            const resumes = formData.getAll('resumes').filter(r => r.trim() !== '');
+            
+            if (resumes.length === 0) {
+                alert('Please enter at least one resume');
+                submitBtn.disabled = false;
+                submitText.textContent = 'Rank Resumes';
+                loadingSpinner.classList.add('hidden');
+                return;
+            }
+            
+            // AJAX call to server
+            fetch('/rank', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data.resumes);
+                } else {
+                    alert('Error processing resumes');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitText.textContent = 'Rank Resumes';
+                loadingSpinner.classList.add('hidden');
+            });
+        });
+        
+        // Display ranked results
+        function displayResults(resumes) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (resumes.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                        <div class="text-gray-400 mb-4">
+                            <i class="fas fa-exclamation-circle text-5xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Valid Resumes</h3>
+                        <p class="text-gray-500">The resumes you entered didn't contain enough information to analyze.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="gradient-bg text-white p-4">
+                        <h2 class="text-xl font-bold">Ranked Results</h2>
+                        <p class="text-sm opacity-80">Resumes sorted by match score (highest to lowest)</p>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between text-sm font-medium text-gray-500">
+                        <span>Candidate</span>
+                        <span>Match Score</span>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+            `;
+            
+            resumes.forEach((resume, index) => {
+                const score = Math.round(resume.score * 100);
+                const scoreColor = score >= 75 ? 'bg-green-500' : 
+                                 score >= 50 ? 'bg-yellow-500' : 
+                                 score >= 25 ? 'bg-orange-500' : 'bg-red-500';
+                
+                html += `
+                    <div class="resume-card hover:bg-blue-50 bg-white p-4 cursor-pointer" onclick="showResumeDetails(${index})">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-lg font-semibold text-gray-800 truncate">Candidate ${index + 1}</h3>
+                                <p class="text-gray-600 text-sm truncate">${getFirstLine(resume.text)}</p>
+                            </div>
+                            <div class="ml-4 flex flex-col items-end">
+                                <span class="text-lg font-bold text-gray-800">${score}%</span>
+                                <div class="w-32 h-2 mt-1">
+                                    <div class="progress-bar overflow-hidden">
+                                        <div class="progress-bar-fill ${scoreColor}" style="width: ${score}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+                
+                <div id="resumeDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+                    <div class="bg-white rounded-lg max-w-3xl w-full max-h-screen overflow-auto">
+                        <div class="border-b border-gray-200 p-4 flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">Resume Details</h3>
+                            <button onclick="hideResumeDetails()" class="text-gray-400 hover:text-gray-500">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="resumeDetailsContent" class="p-6">
+                            <pre id="resumeText" class="whitespace-pre-wrap font-sans"></pre>
+                        </div>
+                        <div class="border-t border-gray-200 p-4 flex justify-end">
+                            <button onclick="hideResumeDetails()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function getFirstLine(text) {
+            const firstLine = text.split('\n')[0];
+            return firstLine || "No title";
+        }
+        
+        let currentResumes = [];
+        
+        function showResumeDetails(index) {
+            document.getElementById('resumeText').textContent = currentResumes[index].text;
+            document.getElementById('resumeDetailsModal').classList.remove('hidden');
+        }
+        
+        function hideResumeDetails() {
+            document.getElementById('resumeDetailsModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

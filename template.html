@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI-Powered Resume Ranker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+        /* Mobile-first responsive styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: #121212;
+            color: #eee;
+        }
+        header, footer {
+            padding: 12px 16px;
+            background: #1f1f1f;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-weight: 700;
+        }
+        main {
+            max-width: 900px;
+            margin: 32px auto;
+            padding: 16px;
+            background: #1e1e1e;
+            border-radius: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        textarea, input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 24px;
+            background: #2a2a2a;
+            color: #eee;
+            font-size: 1rem;
+        }
+        button {
+            background: linear-gradient(45deg, #7f5af0, #4ade80);
+            border: none;
+            color: white;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #6238d2, #22c55e);
+        }
+        .material-icons {
+            font-size: 24px;
+        }
+        @media(min-width: 768px){
+            main {
+                padding: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AI-Powered Resume Ranker</h1>
+    </header>
+    <main>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="job_description">Job Description Keywords</label>
+            <textarea id="job_description" name="job_description" rows="4" placeholder="Enter job profile keywords or description..." required></textarea>
+
+            <label for="resumes">Upload PDF Resumes</label>
+            <input type="file" id="resumes" name="resumes" multiple accept=".pdf" required />
+
+            <button type="submit">
+                <span class="material-icons">upload_file</span> Upload & Rank Resumes
+            </button>
+        </form>
+    </main>
+    <footer>
+        &copy; 2024 AI Resume Ranker
+    </footer>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Ranker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .resume-card { transition: all 0.3s ease; }
+        .resume-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+        .progress-bar { height: 6px; background-color: #e5e7eb; border-radius: 3px; }
+        .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+        .skill-pill { display:inline-block; font-size:0.72rem; padding:2px 9px; border-radius:999px; margin:2px; }
+        .skill-match { background:#dcfce7; color:#15803d; }
+        .skill-missing { background:#fee2e2; color:#b91c1c; }
+        @keyframes pulse { 0%{opacity:.8;} 50%{opacity:1;} 100%{opacity:.8;} }
+        .loading { animation: pulse 1.5s infinite; }
+        .tab-btn.active { border-bottom: 3px solid #764ba2; color:#764ba2; font-weight:600; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #c7c2e8; border-radius: 8px; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="gradient-bg text-white py-12 md:py-16 px-4">
+        <div class="max-w-5xl mx-auto text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-3">🤖 AI Resume Ranker</h1>
+            <p class="text-lg md:text-xl mb-6 opacity-90">Automatically rank and analyze resumes against any job description using NLP</p>
+            <div class="bg-white bg-opacity-15 rounded-lg p-5 backdrop-blur-sm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto text-sm">
+                    <div class="bg-white bg-opacity-10 p-3 rounded-lg"><i class="fas fa-file-alt mb-1"></i><p>Extracts text from PDF resumes</p></div>
+                    <div class="bg-white bg-opacity-10 p-3 rounded-lg"><i class="fas fa-brain mb-1"></i><p>TF-IDF + cosine similarity scoring</p></div>
+                    <div class="bg-white bg-opacity-10 p-3 rounded-lg"><i class="fas fa-sort-amount-down mb-1"></i><p>Ranks + shows matched/missing skills</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">Job Description</h2>
+                <form id="rankingForm">
+                    <textarea id="job_description" name="job_description" rows="6"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-5"
+                        placeholder="Paste the job description here...">Looking for a Data Scientist with strong skills in Python, machine learning, SQL, and cloud deployment. Familiarity with Flask and AWS is a plus.</textarea>
+
+                    <div class="flex border-b mb-4 text-sm text-gray-500">
+                        <button type="button" class="tab-btn active px-3 py-2" data-tab="paste-tab" onclick="switchTab('paste-tab', this)">📋 Paste Text</button>
+                        <button type="button" class="tab-btn px-3 py-2" data-tab="upload-tab" onclick="switchTab('upload-tab', this)">📎 Upload PDFs</button>
+                    </div>
+
+                    <div id="paste-tab">
+                        <label class="block text-gray-700 mb-2 text-sm">Paste resume text (one box per candidate):</label>
+                        <div id="resumeInputs">
+                            <div class="mb-2 relative">
+                                <textarea name="resumes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Paste resume text here..."></textarea>
+                                <button type="button" onclick="removeResumeField(this)" class="absolute top-1 right-1 text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addResumeField()" class="mt-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                            <i class="fas fa-plus mr-1"></i>Add another resume
+                        </button>
+                    </div>
+
+                    <div id="upload-tab" class="hidden">
+                        <label class="block text-gray-700 mb-2 text-sm">Upload one or more PDF resumes:</label>
+                        <input type="file" id="resume_files" name="resume_files" multiple accept=".pdf"
+                            class="w-full text-sm border border-gray-300 rounded-md p-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                        <p id="fileList" class="text-xs text-gray-500 mt-2"></p>
+                    </div>
+
+                    <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-md font-medium hover:opacity-90 transition flex items-center justify-center mt-6">
+                        <span id="submitText">Rank Resumes</span>
+                        <span id="loadingSpinner" class="hidden ml-2"><i class="fas fa-spinner fa-spin"></i></span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div id="resultsContainer">
+                    <div class="bg-white rounded-xl shadow-md p-10 text-center">
+                        <div class="text-gray-300 mb-3"><i class="fas fa-list-ol text-5xl"></i></div>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-1">No Results Yet</h3>
+                        <p class="text-gray-500">Enter a job description and resumes, then click "Rank Resumes".</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-gray-400 text-sm py-8">
+        Built by Meghana · NLP-based Resume Ranking System
+    </footer>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('#paste-tab, #upload-tab').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function addResumeField() {
+            const container = document.getElementById('resumeInputs');
+            const div = document.createElement('div');
+            div.className = 'mb-2 relative';
+            div.innerHTML = `
+                <textarea name="resumes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Paste resume text here..."></textarea>
+                <button type="button" onclick="removeResumeField(this)" class="absolute top-1 right-1 text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function removeResumeField(button) {
+            const fieldContainer = button.parentNode;
+            if (document.querySelectorAll('#resumeInputs > div').length > 1) {
+                fieldContainer.remove();
+            } else {
+                fieldContainer.querySelector('textarea').value = '';
+            }
+        }
+
+        document.getElementById('resume_files').addEventListener('change', function(e) {
+            const names = Array.from(e.target.files).map(f => f.name).join(', ');
+            document.getElementById('fileList').textContent = names ? `Selected: ${names}` : '';
+        });
+
+        document.getElementById('rankingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.querySelector('#rankingForm button[type="submit"]');
+            const submitText = document.getElementById('submitText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            submitBtn.disabled = true;
+            submitText.textContent = 'Processing...';
+            loadingSpinner.classList.remove('hidden');
+
+            const formData = new FormData(this);
+
+            fetch('/rank', { method: 'POST', body: formData })
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok && data.success) {
+                        displayResults(data.rankings);
+                    } else {
+                        showError(data.error || 'Error processing resumes.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showError('A network error occurred.');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitText.textContent = 'Rank Resumes';
+                    loadingSpinner.classList.add('hidden');
+                });
+        });
+
+        function showError(msg) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-8 text-center border border-red-200">
+                    <i class="fas fa-exclamation-circle text-4xl text-red-400 mb-3"></i>
+                    <p class="text-red-600 font-medium">${msg}</p>
+                </div>`;
+        }
+
+        function pillList(skills, cls) {
+            if (!skills.length) return '<span class="text-xs text-gray-400">None</span>';
+            return skills.map(s => `<span class="skill-pill ${cls}">${s}</span>`).join('');
+        }
+
+        function displayResults(rankings) {
+            const container = document.getElementById('resultsContainer');
+
+            let html = `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="gradient-bg text-white p-4 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold">Ranked Results</h2>
+                            <p class="text-sm opacity-80">${rankings.length} candidate(s), sorted by match score</p>
+                        </div>
+                        <button onclick="window.location.href='/download-report'" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-sm px-3 py-2 rounded-md">
+                            <i class="fas fa-download mr-1"></i> Download CSV
+                        </button>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+            `;
+
+            rankings.forEach((r, index) => {
+                const score = r.score;
+                const scoreColor = score >= 75 ? 'bg-green-500' :
+                                    score >= 50 ? 'bg-yellow-500' :
+                                    score >= 25 ? 'bg-orange-500' : 'bg-red-500';
+
+                html += `
+                    <div class="resume-card p-5">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-lg font-semibold text-gray-800">#${index + 1} — ${r.filename}</h3>
+                                <p class="text-gray-500 text-sm truncate">${r.snippet}</p>
+                            </div>
+                            <div class="ml-4 flex flex-col items-end">
+                                <span class="text-lg font-bold text-gray-800">${score}%</span>
+                                <div class="w-32 mt-1">
+                                    <div class="progress-bar overflow-hidden">
+                                        <div class="progress-bar-fill ${scoreColor}" style="width: ${score}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <p class="text-xs font-semibold text-green-700 mb-1"><i class="fas fa-check-circle"></i> Matched Skills</p>
+                                ${pillList(r.matched_skills, 'skill-match')}
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-red-700 mb-1"><i class="fas fa-times-circle"></i> Missing Skills</p>
+                                ${pillList(r.missing_skills, 'skill-missing')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
